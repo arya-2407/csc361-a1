@@ -1,0 +1,6 @@
+__pycache__
+.claude/
+project.md
+validate_with_requests.py
+diff.txt
+test_parse_url.py
