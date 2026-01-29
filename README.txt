@@ -32,3 +32,13 @@ This program also has sophisticated error handling. These are the error types be
   Generic socket error    Error: {e}                                                                    
   Redirect loop           Error: Too many redirects                                                     
   Missing argument        Usage: python WebTester.py <url>   
+
+Programming process:
+    1. URL parsing
+    2. Socket Connection
+    3. Building HTTP request
+    4. Recieve and parse HTTP response
+    5. Format output
+
+    * Step 2,3,4 wrapped in a while loop to handle redirects.
+
