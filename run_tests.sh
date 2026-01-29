@@ -6,7 +6,7 @@ OUTPUT="output.txt"
 run_test() {
     echo "========================================" >> "$OUTPUT"
     echo "TEST: $1" >> "$OUTPUT"
-    echo "CMD: python WebTester.py $2" >> "$OUTPUT"
+    echo "CMD: python3 WebTester.py $2" >> "$OUTPUT"
     echo "----------------------------------------" >> "$OUTPUT"
     python WebTester.py $2 >> "$OUTPUT" 2>&1
     echo "" >> "$OUTPUT"
