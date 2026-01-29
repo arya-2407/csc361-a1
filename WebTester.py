@@ -28,6 +28,10 @@ def parse_url(url_string):
     if "://" in url:
         scheme_part, url = url.split("://", 1)
         scheme = scheme_part.lower()
+        # Validate scheme
+        if scheme not in ("http", "https"):
+            print(f"Error: Unsupported scheme '{scheme}' - only http and https are supported")
+            sys.exit(1)
 
     # Separate host+port from path
     if "/" in url:
@@ -416,7 +420,7 @@ def format_output(url, http2_support, cookies, password_protected):
         formatted output string
     """
     output = []
-    output.append(f"website: {url}")
+    output.append(f"input: {url}")
     output.append(f"1. Supports http2: {'yes' if http2_support else 'no'}")
     output.append("2. List of Cookies:")
 
@@ -429,6 +433,46 @@ def format_output(url, http2_support, cookies, password_protected):
         output.append(cookie_str)
 
     output.append(f"3. Password-protected: {'yes' if password_protected else 'no'}")
+
+    return '\n'.join(output)
+
+
+def format_responses(responses):
+    """
+    Format server responses for display.
+
+    Args:
+        responses: list of response dicts with url, status_line, headers, body
+
+    Returns:
+        formatted string showing headers and body for each response
+    """
+    output = []
+
+    for i, resp in enumerate(responses, 1):
+        output.append(f"\n--- Response {i}: {resp['url']} ---")
+
+        # Header section
+        output.append("[Header]")
+        output.append(resp['status_line'])
+        for key, value in resp['headers'].items():
+            if isinstance(value, list):
+                for v in value:
+                    output.append(f"{key}: {v}")
+            else:
+                output.append(f"{key}: {value}")
+
+        # Body section
+        output.append("\n[Body]")
+        body = resp['body']
+        if body:
+            # Truncate body if too long
+            if len(body) > 1000:
+                output.append(body[:1000] + "\n... (truncated)")
+            else:
+                output.append(body)
+        else:
+            output.append("(empty)")
 
     return '\n'.join(output)
 
@@ -447,14 +491,13 @@ def main():
     # Parse the URL
     url_parts = parse_url(original_url)
 
-    # Check HTTP/2 support (always uses HTTPS)
-    # For HTTP URLs, check on port 443; for HTTPS, use the URL's port
+    # Check HTTP/2 support
+    # HTTP/2 requires TLS in practice (browsers don't support h2c)
+    # So only check if original URL is HTTPS
     if url_parts['scheme'] == 'https':
-        http2_port = url_parts['port']
+        http2_support = check_http2_support(url_parts['host'], url_parts['port'])
     else:
-        http2_port = 443
-
-    http2_support = check_http2_support(url_parts['host'], http2_port)
+        http2_support = False
 
     # Initialize for redirect loop
     all_cookies = []
@@ -462,6 +505,7 @@ def main():
     max_redirects = 10
     redirect_count = 0
     current_url = url_parts
+    responses = []  # Store all responses
 
     # Follow redirects
     while redirect_count < max_redirects:
@@ -477,8 +521,16 @@ def main():
         response = receive_response(sock)
         sock.close()
 
-        status_line, headers, _ = parse_response(response)
+        status_line, headers, body = parse_response(response)
         status_code = get_status_code(status_line)
+
+        # Store response
+        responses.append({
+            'url': f"{current_url['scheme']}://{current_url['host']}{current_url['path']}",
+            'status_line': status_line,
+            'headers': headers,
+            'body': body
+        })
 
         # Collect cookies from this response
         cookies = parse_cookies(headers)
@@ -507,6 +559,10 @@ def main():
     # Format and print output
     output = format_output(original_url, http2_support, all_cookies, password_protected)
     print(output)
+
+    # Print server responses (up to 3)
+    if responses:
+        print(format_responses(responses))
 
 
 if __name__ == "__main__":
